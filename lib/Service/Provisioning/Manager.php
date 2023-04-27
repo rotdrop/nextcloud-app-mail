@@ -32,6 +32,8 @@ use OCA\Mail\Db\Provisioning;
 use OCA\Mail\Db\ProvisioningMapper;
 use OCA\Mail\Db\TagMapper;
 use OCA\Mail\Exception\ValidationException;
+use OCP\Accounts\IAccount;
+use OCP\Accounts\IAccountManager;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 use OCP\ICacheFactory;
@@ -46,6 +48,9 @@ class Manager {
 	public const MAIL_PROVISIONINGS = 'mail_provisionings';
 	/** @var IUserManager */
 	private $userManager;
+
+	/** @var IAccountManager */
+	private $accountManager;
 
 	/** @var ProvisioningMapper */
 	private $provisioningMapper;
@@ -72,6 +77,7 @@ class Manager {
 	private $cacheFactory;
 
 	public function __construct(IUserManager $userManager,
+								IAccountManager $accountManager,
 								ProvisioningMapper $provisioningMapper,
 								MailAccountMapper $mailAccountMapper,
 								ICrypto $crypto,
@@ -81,6 +87,7 @@ class Manager {
 								TagMapper $tagMapper,
 								ICacheFactory $cacheFactory) {
 		$this->userManager = $userManager;
+		$this->accountManager = $accountManager;
 		$this->provisioningMapper = $provisioningMapper;
 		$this->mailAccountMapper = $mailAccountMapper;
 		$this->crypto = $crypto;
@@ -342,18 +349,29 @@ class Manager {
 	 * @param Provisioning[] $provisionings
 	 */
 	private function findMatchingConfig(array $provisionings, IUser $user): ?Provisioning {
+		$emails = [];
 		foreach ($provisionings as $provisioning) {
 			if ($provisioning->getProvisioningDomain() === Provisioning::WILDCARD) {
 				return $provisioning;
 			}
 
-			$email = $user->getEMailAddress();
-			if ($email === null) {
-				continue;
+			if (empty($emails)) {
+				$emails[] = $user->getEMailAddress();
+				$account = $this->accountManager->getAccount($user);
+				$emailCollection = $account->getPropertyCollection(IAccountManager::COLLECTION_EMAIL);
+				/** @var \OCP\Accounts\IAccountProperty $property */
+				foreach ($emailCollection->getProperties() as $property) {
+					$emails[] = $property->getValue();
+				}
 			}
-			$rfc822Address = new Horde_Mail_Rfc822_Address($email);
-			if ($rfc822Address->matchDomain($provisioning->getProvisioningDomain())) {
-				return $provisioning;
+			foreach ($emails as $email) {
+				if (empty($email)) {
+					continue;
+				}
+				$rfc822Address = new Horde_Mail_Rfc822_Address($email);
+				if ($rfc822Address->matchDomain($provisioning->getProvisioningDomain())) {
+					return $provisioning;
+				}
 			}
 		}
 
