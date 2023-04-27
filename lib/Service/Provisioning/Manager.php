@@ -22,6 +22,8 @@ use OCA\Mail\Exception\ValidationException;
 use OCA\Mail\Service\AccountService;
 use OCA\Mail\Service\Classification\ClassificationSettingsService;
 use OCP\App\IAppManager;
+use OCP\Accounts\IAccount;
+use OCP\Accounts\IAccountManager;
 use OCP\AppFramework\Db\DoesNotExistException;
 use OCP\AppFramework\Db\MultipleObjectsReturnedException;
 use OCP\DB\Exception;
@@ -52,6 +54,7 @@ class Manager {
 	public function __construct(
 		IAppManager $appManager,
 		IUserManager $userManager,
+		private IAccountManager $accountManager,
 		private ProvisioningMapper $provisioningMapper,
 		private MailAccountMapper $mailAccountMapper,
 		ICrypto $crypto,
@@ -370,18 +373,29 @@ class Manager {
 	 * @param Provisioning[] $provisionings
 	 */
 	private function findMatchingConfig(array $provisionings, IUser $user): ?Provisioning {
+		$emails = [];
 		foreach ($provisionings as $provisioning) {
 			if ($provisioning->getProvisioningDomain() === Provisioning::WILDCARD) {
 				return $provisioning;
 			}
 
-			$email = $user->getEMailAddress();
-			if ($email === null) {
-				continue;
+			if (empty($emails)) {
+				$emails[] = $user->getEMailAddress();
+				$account = $this->accountManager->getAccount($user);
+				$emailCollection = $account->getPropertyCollection(IAccountManager::COLLECTION_EMAIL);
+				/** @var \OCP\Accounts\IAccountProperty $property */
+				foreach ($emailCollection->getProperties() as $property) {
+					$emails[] = $property->getValue();
+				}
 			}
-			$rfc822Address = new Horde_Mail_Rfc822_Address($email);
-			if ($rfc822Address->matchDomain($provisioning->getProvisioningDomain())) {
-				return $provisioning;
+			foreach ($emails as $email) {
+				if (empty($email)) {
+					continue;
+				}
+				$rfc822Address = new Horde_Mail_Rfc822_Address($email);
+				if ($rfc822Address->matchDomain($provisioning->getProvisioningDomain())) {
+					return $provisioning;
+				}
 			}
 		}
 
