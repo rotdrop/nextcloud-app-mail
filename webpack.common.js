@@ -22,6 +22,7 @@ const plugins = [
 	new CKEditorWebpackPlugin({
 		// See https://ckeditor.com/docs/ckeditor5/latest/features/ui-language.html
 		language: 'en',
+		addMainLanguageTranslationsToAllAssets: true,
 	}),
 	new VueLoaderPlugin(),
 
