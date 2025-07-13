@@ -386,8 +386,13 @@ class Manager {
 				if (empty($email)) {
 					continue;
 				}
+
 				$rfc822Address = new Horde_Mail_Rfc822_Address($email);
-				if ($rfc822Address->matchDomain($provisioning->getProvisioningDomain())) {
+				if (empty($provisioning->getProvisioningDomain())) {
+					if ($rfc822Address->matchInsensitive($provisioning->buildEmail($user))) {
+						return $provisioning;
+					}
+				} elseif ($rfc822Address->matchDomain($provisioning->getProvisioningDomain())) {
 					return $provisioning;
 				}
 			}
