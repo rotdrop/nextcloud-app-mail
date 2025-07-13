@@ -54,10 +54,10 @@ class ProvisioningMapper extends QBMapper {
 	public function validate(array $data): Provisioning {
 		$exception = new ValidationException();
 
-		if (!isset($data['provisioningDomain']) || $data['provisioningDomain'] === '') {
+		$noDomain = !isset($data['provisioningDomain']) || $data['provisioningDomain'] === '';
+		$noEmailTemplate = !isset($data['emailTemplate']) || $data['emailTemplate'] === '';
+		if ($noDomain && $noEmailTemplate) {
 			$exception->setField('provisioningDomain', false);
-		}
-		if (!isset($data['emailTemplate']) || $data['emailTemplate'] === '') {
 			$exception->setField('emailTemplate', false);
 		}
 		if (!isset($data['imapUser']) || $data['imapUser'] === '') {
