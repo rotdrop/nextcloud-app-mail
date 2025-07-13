@@ -193,6 +193,9 @@ class Manager {
 		$provisioning = $this->findMatchingConfig($provisionings, $user);
 
 		if ($provisioning === null) {
+			// Delete any present provisioned accounts
+			$this->aliasMapper->deleteProvisionedAliasesByUid($user->getUID());
+			$this->mailAccountMapper->deleteProvisionedAccountsByUid($user->getUID());
 			return false;
 		}
 
