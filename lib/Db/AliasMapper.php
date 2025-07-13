@@ -114,14 +114,25 @@ class AliasMapper extends QBMapper {
 	 * @throws \Exception
 	 */
 	public function deleteProvisionedAliasesByUid(string $uid): void {
+		$inner = $this->db->getQueryBuilder();
+		$inner->select('id')
+			->from('mail_accounts', 'accounts')
+			->where(
+				$inner->expr()->eq('accounts.user_id', $inner->createNamedParameter($uid)),
+				$inner->expr()->isNotNull('accounts.provisioning_id'),
+			);
+
 		$qb = $this->db->getQueryBuilder();
 
-		$qb->delete($this->getTableName(), 'aliases')
-			->join('aliases', 'mail_accounts', 'accounts', 'accounts.id = aliases.account_id')
+		$qb->delete($this->getTableName())
 			->where(
-				$qb->expr()->eq('accounts.user_id', $qb->createNamedParameter($uid)),
-				$qb->expr()->isNotNull('provisioning_id')
-			);
+				$qb->expr()->in(
+					'account_id',
+					$qb->createFunction($inner->getSql()),
+					IQueryBuilder::PARAM_INT_ARRAY,
+				)
+			)
+			->setParameter('dcValue1', $uid);
 
 		$qb->executeStatement();
 	}
